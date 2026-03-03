@@ -54,7 +54,7 @@ app.post('/regisztracio', async (req, res) => {
     try {
         const isValid = await emailValidator(Email)
         if (!isValid) {
-            return res.status(400).json({ message: "Nem valos emailt adtal meg" })
+            return res.status(406).json({ message: "Nem valos emailt adtal meg" })
         }
 
         const [exist] = await pool.query('SELECT * FROM user WHERE Email = ? OR User_Name = ?', [Email, User_Name]);
@@ -120,6 +120,12 @@ app.post('/belepes', async (req, res) => {
     }
 });
 
+
+//KIJELENTKEZES//
+app.post('/kijelentkezes', auth, async (req, res) => {
+    res.clearCookie(COOKIE_NAME, { path: '/' });
+    res.status(200).json({ message: "Sikeres kijelentkezés |_(*)__(*)_|" })
+})
 
 
 
