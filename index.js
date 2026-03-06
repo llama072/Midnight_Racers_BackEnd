@@ -37,8 +37,20 @@ app.use(cors({
 }));
 
 
-
-
+function auth(req, res, next) {
+    const token = req.cookies[COOKIE_NAME];
+    if (!token) {
+        console.log("Nincs token a sütiben!"); // Ez segíteni fog debugolni
+        return res.status(401).json({ message: "Nem vagy bejelentkezve" });
+    }
+    try {
+        req.user = jwt.verify(token, JWT_SECRET);
+        next();
+    } catch (error) {
+        console.log("Hibás token!");
+        return res.status(403).json({ message: "Nem érvényes token" });
+    }
+}
 
 
 //REGISZTRACIO//
@@ -129,8 +141,84 @@ app.post('/kijelentkezes', auth, async (req, res) => {
 
 
 
+// SAJÁT ADATOK LEKÉRÉSE
+app.get('/profil-adatok', auth, async (req, res) => {
+    try {
+        // Ellenőrizd, hogy a táblád neve 'user' vagy 'User'! (MySQL-ben számíthat)
+        const [rows] = await pool.query(
+            'SELECT User_Name, First_Name, Last_Name, Email FROM user WHERE User_Id = ?', 
+            [req.user.id]
+        );
+        
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Felhasználó nem található" });
+        }
+        res.status(200).json(rows[0]);
+    } catch (error) {
+        console.error("Profil lekérés hiba:", error);
+        res.status(500).json({ message: "Szerverhiba a lekérésnél" });
+    }
+});
 
+// ADATOK FRISSÍTÉSE
+app.put('/profil-update', auth, async (req, res) => {
+    const { field, value } = req.body;
+    const allowedFields = ['First_Name', 'Last_Name', 'User_Name', 'Email'];
+    
+    if (!allowedFields.includes(field)) {
+        return res.status(400).json({ message: "Tiltott mezőmódosítás!" });
+    }
 
+    try {
+        // Itt is figyelj a User_Id és a táblanév írásmódjára!
+        const sql = `UPDATE user SET ${field} = ? WHERE User_Id = ?`;
+        await pool.query(sql, [value, req.user.id]);
+        
+        res.status(200).json({ result: true, message: "Sikeres frissítés!" });
+    } catch (error) {
+        console.error("Update hiba:", error);
+        res.status(500).json({ message: "Hiba az adatbázis frissítésekor" });
+    }
+});
+
+// JELSZÓ FRISSÍTÉSE
+app.put('/update-password', auth, async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ result: false, message: "Hiányzó adatok!" });
+    }
+
+    try {
+        // 1. Lekérjük a júzert az adatbázisból a jelszó ellenőrzéséhez
+        const [rows] = await pool.query('SELECT Password FROM user WHERE User_Id = ?', [req.user.id]);
+        
+        if (rows.length === 0) {
+            return res.status(404).json({ result: false, message: "Felhasználó nem található!" });
+        }
+
+        const user = rows[0];
+
+        // 2. Összehasonlítjuk a jelenlegi jelszót a tárolt hash-el
+        const isMatch = await bcrypt.compare(currentPassword, user.Password);
+        if (!isMatch) {
+            return res.status(401).json({ result: false, message: "A jelenlegi jelszó helytelen!" });
+        }
+
+        // 3. Új jelszó lehashelése (ugyanúgy 10-es salt, mint regisztrációnál)
+        const salt = await bcrypt.genSalt(10);
+        const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
+        // 4. Frissítés az adatbázisban
+        await pool.query('UPDATE user SET Password = ? WHERE User_Id = ?', [hashedNewPassword, req.user.id]);
+
+        res.status(200).json({ result: true, message: "Jelszó sikeresen frissítve!" });
+
+    } catch (error) {
+        console.error("Jelszó update hiba:", error);
+        res.status(500).json({ result: false, message: "Szerverhiba a jelszó frissítésekor" });
+    }
+});
 
 
 
