@@ -6,7 +6,6 @@ const cors = require("cors");
 const cookieParser = require('cookie-parser')
 const jwt = require('jsonwebtoken')
 
-
 const PORT = 3000;
 const HOST = 'localhost'
 const JWT_SECRET = 'qwertzuiop'
@@ -36,11 +35,10 @@ app.use(cors({
     credentials: true
 }));
 
-
 function auth(req, res, next) {
     const token = req.cookies[COOKIE_NAME];
     if (!token) {
-        console.log("Nincs token a sütiben!"); // Ez segíteni fog debugolni
+        console.log("Nincs token a sütiben!");
         return res.status(401).json({ message: "Nem vagy bejelentkezve" });
     }
     try {
@@ -52,11 +50,10 @@ function auth(req, res, next) {
     }
 }
 
-
-//REGISZTRACIO//
+// REGISZTRACIO
 app.post('/regisztracio', async (req, res) => {
     const { User_Name, First_Name, Last_Name, Email, Password } = req.body;
-    const Is_Admin = parseInt(req.body.Is_Admin); // Kényszerítsük számmá    
+    const Is_Admin = parseInt(req.body.Is_Admin);
     console.log("Kapott adatok(Regisztracional):", req.body);
 
     if (!User_Name || !First_Name || !Last_Name || !Email || !Password || !(Is_Admin === 0 || Is_Admin === 1)) {
@@ -78,7 +75,7 @@ app.post('/regisztracio', async (req, res) => {
         const regisztracioSQL = 'INSERT INTO user (User_Name, First_Name, Last_Name, Email, Password, Is_Admin) VALUES (?,?,?,?,?,?)';
         const [result] = await pool.query(regisztracioSQL, [User_Name, First_Name, Last_Name, Email, hash, Is_Admin]);
 
-        return res.status(200).json({ message: "Sikeres regisztráció!", id: result.insertId });
+        return res.status(200).json({ result: true, message: "Sikeres regisztráció!", id: result.insertId });
 
     } catch (error) {
         console.error("ADATBÁZIS HIBA:", error);
@@ -86,14 +83,13 @@ app.post('/regisztracio', async (req, res) => {
     }
 });
 
-//BEJELENTKEZES//
+// BEJELENTKEZES
 app.post('/belepes', async (req, res) => {
-    const { User_Name, Password } = req.body; // A te frontend változóid
+    const { User_Name, Password } = req.body;
     if (!User_Name || !Password) {
         return res.status(400).json({ message: "Hiányos belépési adatok!" });
     }
     try {
-        // 1. Lekérjük a felhasználót (A te táblád neve: user)
         const sql = 'SELECT * FROM user WHERE User_Name = ?';
         const [rows] = await pool.query(sql, [User_Name]);
 
@@ -102,28 +98,24 @@ app.post('/belepes', async (req, res) => {
         }
 
         const user = rows[0];
-
-        // 2. Jelszó ellenőrzése - FONTOS az await!
         const ok = await bcrypt.compare(Password, user.Password);
 
         if (!ok) {
             return res.status(403).json({ message: "Helytelen jelszó!" });
         }
 
-        // 3. Token generálása (id: user.User_Id - mert ez van a phpMyAdminodban)
         const token = jwt.sign(
-            { id: user.User_Id, name: user.User_Name, admin: user.Is_Admin },
+            { id: user.User_Id, name: user.User_Name, is_admin: parseInt(user.Is_Admin) },
             JWT_SECRET,
             { expiresIn: JWT_EXPIRES_IN }
         );
 
-        // 4. Süti küldése - res.cookie (nem cookies!)
         res.cookie(COOKIE_NAME, token, COOKIE_OPTS);
-        
-        return res.status(200).json({ 
-            result: true, 
+
+        return res.status(200).json({
+            result: true,
             message: "Sikeres belépés!",
-            user: { name: user.User_Name, admin: user.Is_Admin }
+            user: { name: user.User_Name, is_admin: parseInt(user.Is_Admin) }
         });
 
     } catch (error) {
@@ -132,24 +124,19 @@ app.post('/belepes', async (req, res) => {
     }
 });
 
-
-//KIJELENTKEZES//
+// KIJELENTKEZES
 app.post('/kijelentkezes', auth, async (req, res) => {
     res.clearCookie(COOKIE_NAME, { path: '/' });
     res.status(200).json({ message: "Sikeres kijelentkezés |_(*)__(*)_|" })
 })
 
-
-
 // SAJÁT ADATOK LEKÉRÉSE
 app.get('/profil-adatok', auth, async (req, res) => {
     try {
-        // Ellenőrizd, hogy a táblád neve 'user' vagy 'User'! (MySQL-ben számíthat)
         const [rows] = await pool.query(
-            'SELECT User_Name, First_Name, Last_Name, Email FROM user WHERE User_Id = ?', 
+            'SELECT User_Name, First_Name, Last_Name, Email FROM user WHERE User_Id = ?',
             [req.user.id]
         );
-        
         if (rows.length === 0) {
             return res.status(404).json({ message: "Felhasználó nem található" });
         }
@@ -164,16 +151,14 @@ app.get('/profil-adatok', auth, async (req, res) => {
 app.put('/profil-update', auth, async (req, res) => {
     const { field, value } = req.body;
     const allowedFields = ['First_Name', 'Last_Name', 'User_Name', 'Email'];
-    
+
     if (!allowedFields.includes(field)) {
         return res.status(400).json({ message: "Tiltott mezőmódosítás!" });
     }
 
     try {
-        // Itt is figyelj a User_Id és a táblanév írásmódjára!
         const sql = `UPDATE user SET ${field} = ? WHERE User_Id = ?`;
         await pool.query(sql, [value, req.user.id]);
-        
         res.status(200).json({ result: true, message: "Sikeres frissítés!" });
     } catch (error) {
         console.error("Update hiba:", error);
@@ -190,26 +175,18 @@ app.put('/update-password', auth, async (req, res) => {
     }
 
     try {
-        // 1. Lekérjük a júzert az adatbázisból a jelszó ellenőrzéséhez
         const [rows] = await pool.query('SELECT Password FROM user WHERE User_Id = ?', [req.user.id]);
-        
+
         if (rows.length === 0) {
             return res.status(404).json({ result: false, message: "Felhasználó nem található!" });
         }
 
-        const user = rows[0];
-
-        // 2. Összehasonlítjuk a jelenlegi jelszót a tárolt hash-el
-        const isMatch = await bcrypt.compare(currentPassword, user.Password);
+        const isMatch = await bcrypt.compare(currentPassword, rows[0].Password);
         if (!isMatch) {
             return res.status(401).json({ result: false, message: "A jelenlegi jelszó helytelen!" });
         }
 
-        // 3. Új jelszó lehashelése (ugyanúgy 10-es salt, mint regisztrációnál)
-        const salt = await bcrypt.genSalt(10);
-        const hashedNewPassword = await bcrypt.hash(newPassword, salt);
-
-        // 4. Frissítés az adatbázisban
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
         await pool.query('UPDATE user SET Password = ? WHERE User_Id = ?', [hashedNewPassword, req.user.id]);
 
         res.status(200).json({ result: true, message: "Jelszó sikeresen frissítve!" });
@@ -220,32 +197,76 @@ app.put('/update-password', auth, async (req, res) => {
     }
 });
 
+// HOME KÁRTYÁK LEKÉRÉSE
+app.get('/home-cards', async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT * FROM home_cards');
+        const result = {};
+        rows.forEach(row => { result[row.kulcs] = { id: row.id, tartalom: row.tartalom }; });
+        res.status(200).json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Szerverhiba" });
+    }
+});
 
+// HOME KÁRTYA FRISSÍTÉSE (csak admin)
+app.put('/home-cards/:id', auth, async (req, res) => {
+    if (req.user.is_admin !== 1) {
+        return res.status(403).json({ result: false, message: "Nincs jogosultságod!" });
+    }
+    const { tartalom } = req.body;
+    try {
+        await pool.query('UPDATE home_cards SET tartalom = ? WHERE id = ?', [tartalom, req.params.id]);
+        res.status(200).json({ result: true });
+    } catch (error) {
+        res.status(500).json({ result: false, message: "Szerverhiba" });
+    }
+});
 
+// UPDATES LEKÉRÉSE
+app.get('/updates', async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            'SELECT id, DATE_FORMAT(datum, "%Y-%m-%d") as datum, szoveg FROM updates ORDER BY datum DESC'
+        );
+        res.status(200).json(rows);
+    } catch (error) {
+        res.status(500).json({ message: "Szerverhiba" });
+    }
+});
 
+// ÚJ UPDATE HOZZÁADÁSA (csak admin)
+app.post('/updates', auth, async (req, res) => {
+    if (req.user.is_admin !== 1) {
+        return res.status(403).json({ result: false, message: "Nincs jogosultságod!" });
+    }
+    const { datum, szoveg } = req.body;
+    if (!datum || !szoveg) {
+        return res.status(400).json({ result: false, message: "Hiányzó adatok!" });
+    }
+    try {
+        const [result] = await pool.query('INSERT INTO updates (datum, szoveg) VALUES (?, ?)', [datum, szoveg]);
+        res.status(200).json({ result: true, id: result.insertId });
+    } catch (error) {
+        res.status(500).json({ result: false, message: "Szerverhiba" });
+    }
+});
 
+// UPDATE TÖRLÉSE (csak admin)
+app.delete('/updates/:id', auth, async (req, res) => {
+    if (req.user.is_admin !== 1) {
+        return res.status(403).json({ result: false, message: "Nincs jogosultságod!" });
+    }
+    try {
+        await pool.query('DELETE FROM updates WHERE id = ?', [req.params.id]);
+        res.status(200).json({ result: true });
+    } catch (error) {
+        res.status(500).json({ result: false, message: "Szerverhiba" });
+    }
+});
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//GAME//
+// GAME
 app.get('/user', async (req, res) => {
     try {
         const [result] = await pool.query('SELECT * FROM User')
@@ -264,7 +285,6 @@ app.get('/stats', async (req, res) => {
     }
 })
 
-// Add ezt az index.js fájlhoz a többi app.get/post közé
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -281,8 +301,7 @@ app.post('/login', async (req, res) => {
 
 app.post('/save-score', async (req, res) => {
     const { userId, score } = req.body;
-
-    console.log(`Mentési kísérlet -> User: ${userId}, Pont: ${score}`); // Ez látszik a terminálban!
+    console.log(`Mentési kísérlet -> User: ${userId}, Pont: ${score}`);
 
     if (!userId || userId === -1) {
         return res.status(400).send({ success: false, message: "Nincs érvényes User ID!" });
@@ -297,7 +316,6 @@ app.post('/save-score', async (req, res) => {
         res.status(500).send(error);
     }
 });
-
 
 app.listen(PORT, () => {
     console.log(`Megy a BackEnd ezen a porton: ${PORT}  (੭˶◕ω⁠◕)੭`)
