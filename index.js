@@ -224,6 +224,51 @@ app.put('/home-cards/:id', auth, async (req, res) => {
     }
 });
 
+// NEWS LEKÉRÉSE
+app.get('/news', async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            'SELECT id, cim, tartalom, DATE_FORMAT(datum, "%Y.%m.%d") as datum FROM news ORDER BY datum DESC'
+        );
+        res.status(200).json(rows);
+    } catch (error) {
+        res.status(500).json({ message: "Szerverhiba" });
+    }
+});
+
+// ÚJ NEWS HOZZÁADÁSA (csak admin)
+app.post('/news', auth, async (req, res) => {
+    if (req.user.is_admin !== 1) {
+        return res.status(403).json({ result: false, message: "Nincs jogosultságod!" });
+    }
+    const { cim, tartalom, datum } = req.body;
+    if (!cim || !tartalom || !datum) {
+        return res.status(400).json({ result: false, message: "Hiányzó adatok!" });
+    }
+    try {
+        const [result] = await pool.query(
+            'INSERT INTO news (cim, tartalom, datum) VALUES (?, ?, ?)',
+            [cim, tartalom, datum]
+        );
+        res.status(200).json({ result: true, id: result.insertId });
+    } catch (error) {
+        res.status(500).json({ result: false, message: "Szerverhiba" });
+    }
+});
+
+// NEWS TÖRLÉSE (csak admin)
+app.delete('/news/:id', auth, async (req, res) => {
+    if (req.user.is_admin !== 1) {
+        return res.status(403).json({ result: false, message: "Nincs jogosultságod!" });
+    }
+    try {
+        await pool.query('DELETE FROM news WHERE id = ?', [req.params.id]);
+        res.status(200).json({ result: true });
+    } catch (error) {
+        res.status(500).json({ result: false, message: "Szerverhiba" });
+    }
+});
+
 // UPDATES LEKÉRÉSE
 app.get('/updates', async (req, res) => {
     try {
