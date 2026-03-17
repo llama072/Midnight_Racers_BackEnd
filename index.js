@@ -311,6 +311,39 @@ app.delete('/updates/:id', auth, async (req, res) => {
     }
 });
 
+// SAJÁT STATS LEKÉRÉSE
+app.get('/my-stats', auth, async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            'SELECT Score, Lvl, Gametime FROM stats WHERE User_Id = ? ORDER BY Score DESC LIMIT 1',
+            [req.user.id]
+        );
+        if (rows.length === 0) {
+            return res.status(200).json({ Score: 0, Lvl: 0, Gametime: 0 });
+        }
+        res.status(200).json(rows[0]);
+    } catch (error) {
+        res.status(500).json({ message: "Szerverhiba" });
+    }
+});
+
+// LEADERBOARD
+app.get('/leaderboard', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT u.User_Name, MAX(s.Score) as Score, MAX(s.Lvl) as Lvl
+            FROM stats s
+            JOIN user u ON s.User_Id = u.User_Id
+            GROUP BY s.User_Id, u.User_Name
+            ORDER BY Score DESC
+            LIMIT 10
+        `);
+        res.status(200).json(rows);
+    } catch (error) {
+        res.status(500).json({ message: "Szerverhiba" });
+    }
+});
+
 // GAME
 app.get('/user', async (req, res) => {
     try {
