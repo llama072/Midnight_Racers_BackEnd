@@ -5,6 +5,9 @@ const emailValidator = require("node-email-verifier")
 const cors = require("cors");
 const cookieParser = require('cookie-parser')
 const jwt = require('jsonwebtoken')
+const multer = require('multer')
+const path = require('path')
+const fs = require('fs')
 
 const PORT = 3000;
 const HOST = 'localhost'
@@ -27,6 +30,25 @@ const pool = mysql.createPool({
     database: 'midnight_racers'
 });
 
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+    filename: (req, file, cb) => {
+        const unique = Date.now() + '-' + Math.round(Math.random() * 1e6);
+        cb(null, unique + path.extname(file.originalname));
+    }
+});
+const upload = multer({
+    storage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // max 10MB
+    fileFilter: (req, file, cb) => {
+        const allowed = /jpeg|jpg|png|gif|webp/;
+        cb(null, allowed.test(path.extname(file.originalname).toLowerCase()));
+    }
+});
+
 const app = express()
 app.use(express.json())
 app.use(cookieParser())
@@ -34,6 +56,7 @@ app.use(cors({
     origin: "http://localhost:5173",
     credentials: true
 }));
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 function auth(req, res, next) {
     const token = req.cookies[COOKIE_NAME];
@@ -256,6 +279,26 @@ app.post('/news', auth, async (req, res) => {
     }
 });
 
+// NEWS SZERKESZTÉSE (csak admin)
+app.put('/news/:id', auth, async (req, res) => {
+    if (req.user.is_admin !== 1) {
+        return res.status(403).json({ result: false, message: "Nincs jogosultságod!" });
+    }
+    const { cim, tartalom, datum } = req.body;
+    if (!cim || !tartalom || !datum) {
+        return res.status(400).json({ result: false, message: "Hiányzó adatok!" });
+    }
+    try {
+        await pool.query(
+            'UPDATE news SET cim = ?, tartalom = ?, datum = ? WHERE id = ?',
+            [cim, tartalom, datum, req.params.id]
+        );
+        res.status(200).json({ result: true });
+    } catch (error) {
+        res.status(500).json({ result: false, message: "Szerverhiba" });
+    }
+});
+
 // NEWS TÖRLÉSE (csak admin)
 app.delete('/news/:id', auth, async (req, res) => {
     if (req.user.is_admin !== 1) {
@@ -263,6 +306,58 @@ app.delete('/news/:id', auth, async (req, res) => {
     }
     try {
         await pool.query('DELETE FROM news WHERE id = ?', [req.params.id]);
+        res.status(200).json({ result: true });
+    } catch (error) {
+        res.status(500).json({ result: false, message: "Szerverhiba" });
+    }
+});
+
+// ABOUT GALLERY LEKÉRÉSE
+app.get('/about-gallery', async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT * FROM about_gallery ORDER BY sorrend ASC, id ASC');
+        res.status(200).json(rows);
+    } catch (error) {
+        res.status(500).json({ message: "Szerverhiba" });
+    }
+});
+
+// ABOUT GALLERY KÉP HOZZÁADÁSA (csak admin)
+app.post('/about-gallery', auth, async (req, res) => {
+    if (req.user.is_admin !== 1) return res.status(403).json({ result: false, message: "Nincs jogosultságod!" });
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ result: false, message: "Hiányzó URL!" });
+    try {
+        const [result] = await pool.query('INSERT INTO about_gallery (url) VALUES (?)', [url]);
+        res.status(200).json({ result: true, id: result.insertId });
+    } catch (error) {
+        res.status(500).json({ result: false, message: "Szerverhiba" });
+    }
+});
+
+// ABOUT GALLERY KÉP FELTÖLTÉSE (csak admin)
+app.post('/about-gallery/upload', auth, upload.single('image'), async (req, res) => {
+    if (req.user.is_admin !== 1) return res.status(403).json({ result: false, message: "Nincs jogosultságod!" });
+    if (!req.file) return res.status(400).json({ result: false, message: "Nincs fájl!" });
+    const url = `/uploads/${req.file.filename}`;
+    try {
+        const [result] = await pool.query('INSERT INTO about_gallery (url) VALUES (?)', [url]);
+        res.status(200).json({ result: true, id: result.insertId, url });
+    } catch (error) {
+        res.status(500).json({ result: false, message: "Szerverhiba" });
+    }
+});
+
+// ABOUT GALLERY KÉP TÖRLÉSE (csak admin)
+app.delete('/about-gallery/:id', auth, async (req, res) => {
+    if (req.user.is_admin !== 1) return res.status(403).json({ result: false, message: "Nincs jogosultságod!" });
+    try {
+        const [rows] = await pool.query('SELECT url FROM about_gallery WHERE id = ?', [req.params.id]);
+        if (rows.length > 0 && rows[0].url.startsWith('/uploads/')) {
+            const filePath = path.join(UPLOADS_DIR, path.basename(rows[0].url));
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        }
+        await pool.query('DELETE FROM about_gallery WHERE id = ?', [req.params.id]);
         res.status(200).json({ result: true });
     } catch (error) {
         res.status(500).json({ result: false, message: "Szerverhiba" });
@@ -315,14 +410,15 @@ app.delete('/updates/:id', auth, async (req, res) => {
 app.get('/my-stats', auth, async (req, res) => {
     try {
         const [rows] = await pool.query(
-            'SELECT Score, Lvl, Gametime FROM stats WHERE User_Id = ? ORDER BY Score DESC LIMIT 1',
+            'SELECT MAX(Score) as Score FROM stats WHERE User_Id = ?',
             [req.user.id]
         );
-        if (rows.length === 0) {
-            return res.status(200).json({ Score: 0, Lvl: 0, Gametime: 0 });
-        }
-        res.status(200).json(rows[0]);
+
+        res.status(200).json({
+            Score: rows[0]?.Score || 0
+        });
     } catch (error) {
+        console.error("MY-STATS ERROR:", error);
         res.status(500).json({ message: "Szerverhiba" });
     }
 });
@@ -331,16 +427,19 @@ app.get('/my-stats', auth, async (req, res) => {
 app.get('/leaderboard', async (req, res) => {
     try {
         const [rows] = await pool.query(`
-            SELECT u.User_Name, MAX(s.Score) as Score, MAX(s.Lvl) as Lvl
+            SELECT u.User_Name, MAX(s.Score) as Score
             FROM stats s
             JOIN user u ON s.User_Id = u.User_Id
             GROUP BY s.User_Id, u.User_Name
             ORDER BY Score DESC
             LIMIT 10
         `);
-        res.status(200).json(rows);
+
+        res.json(rows);
+
     } catch (error) {
-        res.status(500).json({ message: "Szerverhiba" });
+        console.error("LEADERBOARD ERROR:", error);
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -365,15 +464,22 @@ app.get('/stats', async (req, res) => {
 
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
+    if (!username || !password) {
+        return res.send({ success: false, message: "Hiányzó adatok!" });
+    }
     try {
-        const [rows] = await pool.query('SELECT User_Id FROM User WHERE User_Name = ? AND Password = ?', [username, password]);
-        if (rows.length > 0) {
-            res.send({ success: true, userId: rows[0].User_Id });
-        } else {
-            res.send({ success: false, message: "Hibás adatok!" });
+        const [rows] = await pool.query('SELECT User_Id, Password FROM user WHERE User_Name = ?', [username]);
+        if (rows.length === 0) {
+            return res.send({ success: false, message: "Nincs ilyen felhasználó!" });
         }
+        const ok = await bcrypt.compare(password, rows[0].Password);
+        if (!ok) {
+            return res.send({ success: false, message: "Hibás jelszó!" });
+        }
+        res.send({ success: true, userId: rows[0].User_Id });
     } catch (error) {
-        res.status(500).send(error);
+        console.error("Game login hiba:", error);
+        res.status(500).send({ success: false, message: "Szerverhiba" });
     }
 });
 
