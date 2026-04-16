@@ -1,3 +1,5 @@
+require('dotenv').config()
+
 const express = require("express")
 const mysql = require("mysql2/promise")
 const bcrypt = require("bcrypt")
@@ -9,24 +11,25 @@ const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
 
-const PORT = 3000;
-const JWT_SECRET = 'qwertzuiop'
-const JWT_EXPIRES_IN = '7d'
-const COOKIE_NAME = 'auth_token'
+const PORT = process.env.PORT;
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = process.JWT_EXPIRES_IN;
+
 
 const COOKIE_OPTS = {
     httpOnly: true,
-    secure: false,
-    sameSite: 'lax',
+    secure: true,
+    sameSite: 'none',
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000,
 }
 
 const pool = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'midnight_racers'
+    host: process.env.HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
 });
 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -52,7 +55,7 @@ const app = express()
 app.use(express.json())
 app.use(cookieParser())
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: "*",
     credentials: true
 }));
 app.use('/uploads', express.static(UPLOADS_DIR));
@@ -146,8 +149,13 @@ app.post('/belepes', async (req, res) => {
 
 // KIJELENTKEZES
 app.post('/kijelentkezes', auth, (req, res) => {
-    res.clearCookie(COOKIE_NAME, { path: '/' });
-    res.status(200).json({ message: "Sikeres kijelentkezés |_(*)__(*)_|" })
+    res.clearCookie(COOKIE_NAME, { 
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        path: '/' });
+    res.status(200).json({ message: "Sikeres kijelentkezés" })
+
 })
 
 // SAJÁT ADATOK LEKÉRÉSE
@@ -505,4 +513,4 @@ app.post('/save-score', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Megy a BackEnd ezen a porton: ${PORT}  (੭˶◕ω⁠◕)੭`)
-})
+});
