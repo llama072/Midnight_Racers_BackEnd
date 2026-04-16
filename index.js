@@ -10,7 +10,6 @@ const path = require('path')
 const fs = require('fs')
 
 const PORT = 3000;
-const HOST = 'localhost'
 const JWT_SECRET = 'qwertzuiop'
 const JWT_EXPIRES_IN = '7d'
 const COOKIE_NAME = 'auth_token'
@@ -42,7 +41,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
     storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // max 10MB
+    limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         const allowed = /jpeg|jpg|png|gif|webp/;
         cb(null, allowed.test(path.extname(file.originalname).toLowerCase()));
@@ -61,14 +60,12 @@ app.use('/uploads', express.static(UPLOADS_DIR));
 function auth(req, res, next) {
     const token = req.cookies[COOKIE_NAME];
     if (!token) {
-        console.log("Nincs token a sütiben!");
         return res.status(401).json({ message: "Nem vagy bejelentkezve" });
     }
     try {
         req.user = jwt.verify(token, JWT_SECRET);
         next();
-    } catch (error) {
-        console.log("Hibás token!");
+    } catch {
         return res.status(403).json({ message: "Nem érvényes token" });
     }
 }
@@ -77,7 +74,6 @@ function auth(req, res, next) {
 app.post('/regisztracio', async (req, res) => {
     const { User_Name, First_Name, Last_Name, Email, Password } = req.body;
     const Is_Admin = parseInt(req.body.Is_Admin);
-    console.log("Kapott adatok(Regisztracional):", req.body);
 
     if (!User_Name || !First_Name || !Last_Name || !Email || !Password || !(Is_Admin === 0 || Is_Admin === 1)) {
         return res.status(400).json({ message: "Hiányzó adat(ok)" });
@@ -91,12 +87,14 @@ app.post('/regisztracio', async (req, res) => {
 
         const [exist] = await pool.query('SELECT * FROM user WHERE Email = ? OR User_Name = ?', [Email, User_Name]);
         if (exist.length > 0) {
-            return res.status(402).json({ message: 'Már foglalt az email vagy a felhasznalonev' });
+            return res.status(402).json({ message: 'Mar foglalt az email vagy a felhasznalonev' });
         }
 
         const hash = await bcrypt.hash(Password, 10);
-        const regisztracioSQL = 'INSERT INTO user (User_Name, First_Name, Last_Name, Email, Password, Is_Admin) VALUES (?,?,?,?,?,?)';
-        const [result] = await pool.query(regisztracioSQL, [User_Name, First_Name, Last_Name, Email, hash, Is_Admin]);
+        const [result] = await pool.query(
+            'INSERT INTO user (User_Name, First_Name, Last_Name, Email, Password, Is_Admin) VALUES (?,?,?,?,?,?)',
+            [User_Name, First_Name, Last_Name, Email, hash, Is_Admin]
+        );
 
         return res.status(200).json({ result: true, message: "Sikeres regisztráció!", id: result.insertId });
 
@@ -113,8 +111,7 @@ app.post('/belepes', async (req, res) => {
         return res.status(400).json({ message: "Hiányos belépési adatok!" });
     }
     try {
-        const sql = 'SELECT * FROM user WHERE User_Name = ?';
-        const [rows] = await pool.query(sql, [User_Name]);
+        const [rows] = await pool.query('SELECT * FROM user WHERE User_Name = ?', [User_Name]);
 
         if (rows.length === 0) {
             return res.status(404).json({ message: "Nincs ilyen felhasználó!" });
@@ -142,13 +139,13 @@ app.post('/belepes', async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Belépés hiba:", error);
         return res.status(500).json({ message: "Szerverhiba!" });
     }
 });
 
 // KIJELENTKEZES
-app.post('/kijelentkezes', auth, async (req, res) => {
+app.post('/kijelentkezes', auth, (req, res) => {
     res.clearCookie(COOKIE_NAME, { path: '/' });
     res.status(200).json({ message: "Sikeres kijelentkezés |_(*)__(*)_|" })
 })
@@ -228,7 +225,7 @@ app.get('/home-cards', async (req, res) => {
         rows.forEach(row => { result[row.kulcs] = { id: row.id, tartalom: row.tartalom }; });
         res.status(200).json(result);
     } catch (error) {
-        console.error(error);
+        console.error("Home cards hiba:", error);
         res.status(500).json({ message: "Szerverhiba" });
     }
 });
@@ -243,6 +240,7 @@ app.put('/home-cards/:id', auth, async (req, res) => {
         await pool.query('UPDATE home_cards SET tartalom = ? WHERE id = ?', [tartalom, req.params.id]);
         res.status(200).json({ result: true });
     } catch (error) {
+        console.error("Home cards update hiba:", error);
         res.status(500).json({ result: false, message: "Szerverhiba" });
     }
 });
@@ -255,6 +253,7 @@ app.get('/news', async (req, res) => {
         );
         res.status(200).json(rows);
     } catch (error) {
+        console.error("News lekérés hiba:", error);
         res.status(500).json({ message: "Szerverhiba" });
     }
 });
@@ -275,6 +274,7 @@ app.post('/news', auth, async (req, res) => {
         );
         res.status(200).json({ result: true, id: result.insertId });
     } catch (error) {
+        console.error("News hozzáadás hiba:", error);
         res.status(500).json({ result: false, message: "Szerverhiba" });
     }
 });
@@ -295,6 +295,7 @@ app.put('/news/:id', auth, async (req, res) => {
         );
         res.status(200).json({ result: true });
     } catch (error) {
+        console.error("News frissítés hiba:", error);
         res.status(500).json({ result: false, message: "Szerverhiba" });
     }
 });
@@ -308,6 +309,7 @@ app.delete('/news/:id', auth, async (req, res) => {
         await pool.query('DELETE FROM news WHERE id = ?', [req.params.id]);
         res.status(200).json({ result: true });
     } catch (error) {
+        console.error("News törlés hiba:", error);
         res.status(500).json({ result: false, message: "Szerverhiba" });
     }
 });
@@ -318,6 +320,7 @@ app.get('/about-gallery', async (req, res) => {
         const [rows] = await pool.query('SELECT * FROM about_gallery ORDER BY sorrend ASC, id ASC');
         res.status(200).json(rows);
     } catch (error) {
+        console.error("Gallery lekérés hiba:", error);
         res.status(500).json({ message: "Szerverhiba" });
     }
 });
@@ -331,6 +334,7 @@ app.post('/about-gallery', auth, async (req, res) => {
         const [result] = await pool.query('INSERT INTO about_gallery (url) VALUES (?)', [url]);
         res.status(200).json({ result: true, id: result.insertId });
     } catch (error) {
+        console.error("Gallery hozzáadás hiba:", error);
         res.status(500).json({ result: false, message: "Szerverhiba" });
     }
 });
@@ -344,6 +348,7 @@ app.post('/about-gallery/upload', auth, upload.single('image'), async (req, res)
         const [result] = await pool.query('INSERT INTO about_gallery (url) VALUES (?)', [url]);
         res.status(200).json({ result: true, id: result.insertId, url });
     } catch (error) {
+        console.error("Gallery feltöltés hiba:", error);
         res.status(500).json({ result: false, message: "Szerverhiba" });
     }
 });
@@ -360,6 +365,7 @@ app.delete('/about-gallery/:id', auth, async (req, res) => {
         await pool.query('DELETE FROM about_gallery WHERE id = ?', [req.params.id]);
         res.status(200).json({ result: true });
     } catch (error) {
+        console.error("Gallery törlés hiba:", error);
         res.status(500).json({ result: false, message: "Szerverhiba" });
     }
 });
@@ -372,6 +378,7 @@ app.get('/updates', async (req, res) => {
         );
         res.status(200).json(rows);
     } catch (error) {
+        console.error("Updates lekérés hiba:", error);
         res.status(500).json({ message: "Szerverhiba" });
     }
 });
@@ -389,6 +396,7 @@ app.post('/updates', auth, async (req, res) => {
         const [result] = await pool.query('INSERT INTO updates (datum, szoveg) VALUES (?, ?)', [datum, szoveg]);
         res.status(200).json({ result: true, id: result.insertId });
     } catch (error) {
+        console.error("Update hozzáadás hiba:", error);
         res.status(500).json({ result: false, message: "Szerverhiba" });
     }
 });
@@ -402,6 +410,7 @@ app.delete('/updates/:id', auth, async (req, res) => {
         await pool.query('DELETE FROM updates WHERE id = ?', [req.params.id]);
         res.status(200).json({ result: true });
     } catch (error) {
+        console.error("Update törlés hiba:", error);
         res.status(500).json({ result: false, message: "Szerverhiba" });
     }
 });
@@ -413,12 +422,9 @@ app.get('/my-stats', auth, async (req, res) => {
             'SELECT MAX(Score) as Score FROM stats WHERE User_Id = ?',
             [req.user.id]
         );
-
-        res.status(200).json({
-            Score: rows[0]?.Score || 0
-        });
+        res.status(200).json({ Score: rows[0]?.Score || 0 });
     } catch (error) {
-        console.error("MY-STATS ERROR:", error);
+        console.error("My-stats hiba:", error);
         res.status(500).json({ message: "Szerverhiba" });
     }
 });
@@ -434,16 +440,14 @@ app.get('/leaderboard', async (req, res) => {
             ORDER BY Score DESC
             LIMIT 10
         `);
-
         res.json(rows);
-
     } catch (error) {
-        console.error("LEADERBOARD ERROR:", error);
+        console.error("Leaderboard hiba:", error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// GAME
+// GAME ENDPOINTS
 app.get('/user', async (req, res) => {
     try {
         const [result] = await pool.query('SELECT * FROM User')
@@ -485,7 +489,6 @@ app.post('/login', async (req, res) => {
 
 app.post('/save-score', async (req, res) => {
     const { userId, score } = req.body;
-    console.log(`Mentési kísérlet -> User: ${userId}, Pont: ${score}`);
 
     if (!userId || userId === -1) {
         return res.status(400).send({ success: false, message: "Nincs érvényes User ID!" });
@@ -493,10 +496,9 @@ app.post('/save-score', async (req, res) => {
 
     try {
         await pool.query('INSERT INTO Stats (User_Id, Score) VALUES (?, ?)', [userId, score]);
-        console.log("Sikeres mentés az adatbázisba!");
         res.send({ success: true });
     } catch (error) {
-        console.error("Adatbázis hiba:", error);
+        console.error("Score mentés hiba:", error);
         res.status(500).send(error);
     }
 });
