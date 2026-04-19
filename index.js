@@ -2,7 +2,7 @@ require('dotenv').config()
 
 const express = require("express")
 const mysql = require("mysql2/promise")
-const bcrypt = require("bcrypt")
+const bcrypt = require("bcryptjs")
 const emailValidator = require("node-email-verifier")
 const cors = require("cors");
 const cookieParser = require('cookie-parser')
@@ -11,25 +11,25 @@ const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
 
-const PORT = process.env.PORT;
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = process.JWT_EXPIRES_IN;
-
+const PORT = process.env.PORT || 3000
+const JWT_SECRET = process.env.JWT_SECRET
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'
+const COOKIE_NAME = 'auth_token'
 
 const COOKIE_OPTS = {
     httpOnly: true,
-    secure: true,
-    sameSite: 'none',
+    secure: true,          
+    sameSite: 'none',      
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000,
 }
 
 const pool = mysql.createPool({
-    host: process.env.HOST,
+    host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
+    database: process.env.DB_NAME
 });
 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -55,7 +55,7 @@ const app = express()
 app.use(express.json())
 app.use(cookieParser())
 app.use(cors({
-    origin: "*",
+    origin: ["https://midnightracers.netlify.app","http://localhost:5173"],
     credentials: true
 }));
 app.use('/uploads', express.static(UPLOADS_DIR));
@@ -72,6 +72,10 @@ function auth(req, res, next) {
         return res.status(403).json({ message: "Nem érvényes token" });
     }
 }
+
+app.get('/', (req, res)=>{
+    res.send("hi")
+})
 
 // REGISZTRACIO
 app.post('/regisztracio', async (req, res) => {
