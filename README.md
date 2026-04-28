@@ -55,7 +55,7 @@ JWT alapú hitelesítést és MySQL adatbázist használ.
 - Multer  
 
 ### Egyéb
-- bcrypt / bcryptjs  
+- bcryptjs  
 - cookie-parser  
 - cors  
 - dotenv  
@@ -72,6 +72,9 @@ JWT alapú hitelesítést és MySQL adatbázist használ.
 | updates | Frissítések |
 | home_cards | Főoldal tartalom |
 | about_gallery | Galéria |
+
+<img width="1061" height="595" alt="image" src="https://github.com/user-attachments/assets/48d9783c-25fb-49a6-89e0-d93280900431" />
+
 
 ---
 
@@ -159,7 +162,6 @@ JWT_EXPIRES_IN=7d
 ```bash
 {
   "dependencies": {
-    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
