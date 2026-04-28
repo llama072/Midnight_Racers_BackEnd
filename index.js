@@ -20,7 +20,7 @@ const COOKIE_NAME = 'auth_token'
 const MAX_USERNAME_LEN = 32;
 const MAX_NAME_LEN = 64;
 const MAX_EMAIL_LEN = 254;
-const MIN_PASSWORD_LEN = 6;
+const MIN_PASSWORD_LEN = 8;
 const MAX_PASSWORD_LEN = 128;
 const MAX_TEXT_LEN = 5000;   // news/update tartalom limit
 
@@ -299,6 +299,96 @@ app.get('/profil-adatok', auth, async (req, res) => {
     }
 });
 
+
+// ---------- FIÓK TÖRLÉS ----------
+app.delete('/profil-delete', auth, async (req, res) => {
+    const { currentPassword } = req.body;
+
+    if (typeof currentPassword !== 'string' || currentPassword.length === 0) {
+        return res.status(400).json({
+            result: false,
+            message: "A jelenlegi jelszó megadása kötelező!"
+        });
+    }
+
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.beginTransaction();
+
+        const [rows] = await conn.query(
+            'SELECT User_Id, Password, Is_Admin FROM user WHERE User_Id = ?',
+            [req.user.id]
+        );
+
+        if (rows.length === 0) {
+            await conn.rollback();
+            return res.status(404).json({
+                result: false,
+                message: "Felhasználó nem található!"
+            });
+        }
+
+        const user = rows[0];
+
+        const isMatch = await bcrypt.compare(currentPassword, user.Password);
+        if (!isMatch) {
+            await conn.rollback();
+            return res.status(401).json({
+                result: false,
+                message: "Helytelen jelszó!"
+            });
+        }
+
+        // Ha admin, ne tudja törölni magát, ha ő az utolsó admin
+        if (parseInt(user.Is_Admin) === 1) {
+            const [adminRows] = await conn.query(
+                'SELECT COUNT(*) AS c FROM user WHERE Is_Admin = 1'
+            );
+
+            if (adminRows[0].c <= 1) {
+                await conn.rollback();
+                return res.status(400).json({
+                    result: false,
+                    message: "Az utolsó admin fiók nem törölhető!"
+                });
+            }
+        }
+
+        // Kapcsolódó rekordok törlése
+        await conn.query('DELETE FROM stats WHERE User_Id = ?', [req.user.id]);
+        await conn.query('DELETE FROM comment WHERE User_Id = ?', [req.user.id]);
+
+        // Maga a user törlése
+        await conn.query('DELETE FROM user WHERE User_Id = ?', [req.user.id]);
+
+        await conn.commit();
+
+        // auth cookie törlése
+        res.clearCookie(COOKIE_NAME, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+            path: '/'
+        });
+
+        return res.status(200).json({
+            result: true,
+            message: "A fiók sikeresen törölve lett."
+        });
+
+    } catch (error) {
+        if (conn) await conn.rollback();
+        console.error("Fiók törlés hiba:", error);
+        return res.status(500).json({
+            result: false,
+            message: "Szerverhiba a fiók törlésekor"
+        });
+    } finally {
+        if (conn) conn.release();
+    }
+});
+
 // ---------- PROFIL UPDATE ----------
 app.put('/profil-update', auth, async (req, res) => {
     const { field } = req.body;
@@ -373,41 +463,6 @@ app.put('/update-password', auth, async (req, res) => {
     } catch (error) {
         console.error("Jelszó update hiba:", error);
         res.status(500).json({ result: false, message: "Szerverhiba a jelszó frissítésekor" });
-    }
-});
-
-// ---------- FIÓK TÖRLÉSE ----------
-// A felhasznalo sajat fiokjanak torlese. Jelszo megerositest kerunk
-// (mert ez megforditthatatlan muvelet), es takaritjuk a kapcsolodo
-// statisztikakat is. Cookie-t is torlunk.
-app.delete('/profil-delete', auth, async (req, res) => {
-    const { currentPassword } = req.body;
-    if (typeof currentPassword !== 'string' || currentPassword.length === 0) {
-        return res.status(400).json({ result: false, message: "Jelszó megadása kötelező!" });
-    }
-    try {
-        const [rows] = await pool.query('SELECT Password FROM user WHERE User_Id = ?', [req.user.id]);
-        if (rows.length === 0) {
-            return res.status(404).json({ result: false, message: "Felhasználó nem található!" });
-        }
-        const isMatch = await bcrypt.compare(currentPassword, rows[0].Password);
-        if (!isMatch) {
-            return res.status(401).json({ result: false, message: "Hibás jelszó!" });
-        }
-        // Kapcsolodo rekordok elotte (stats FK miatt)
-        await pool.query('DELETE FROM stats WHERE User_Id = ?', [req.user.id]);
-        await pool.query('DELETE FROM user  WHERE User_Id = ?', [req.user.id]);
-
-        res.clearCookie(COOKIE_NAME, {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'none',
-            path: '/'
-        });
-        res.status(200).json({ result: true, message: "Fiók törölve!" });
-    } catch (error) {
-        console.error("Profil törlés hiba:", error);
-        res.status(500).json({ result: false, message: "Szerverhiba törlés közben" });
     }
 });
 

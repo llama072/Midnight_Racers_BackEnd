@@ -1,11 +1,11 @@
--- phpMyAdmin SQL Dump
--- version 5.2.1
+- phpMyAdmin SQL Dump
+-- version 5.2.2
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1
--- Generation Time: Apr 16, 2026 at 06:54 AM
--- Server version: 10.4.32-MariaDB
--- PHP Version: 8.0.30
+-- Gép: 192.168.255.103
+-- Létrehozás ideje: 2026. Ápr 28. 10:14
+-- Kiszolgáló verziója: 11.4.7-MariaDB-log
+-- PHP verzió: 8.4.11
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,25 +18,26 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `midnight_racers`
+-- Adatbázis: `midnight_racers`
 --
-CREATE DATABASE IF NOT EXISTS `midnight_racers` DEFAULT CHARACTER SET utf8 COLLATE utf8_hungarian_ci;
+CREATE DATABASE IF NOT EXISTS `midnight_racers` DEFAULT CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci;
 USE `midnight_racers`;
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `about_gallery`
+-- Tábla szerkezet ehhez a táblához `about_gallery`
 --
 
+DROP TABLE IF EXISTS `about_gallery`;
 CREATE TABLE `about_gallery` (
   `id` int(11) UNSIGNED NOT NULL,
   `url` varchar(500) NOT NULL,
   `sorrend` int(11) DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_hungarian_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_hungarian_ci;
 
 --
--- Dumping data for table `about_gallery`
+-- A tábla adatainak kiíratása `about_gallery`
 --
 
 INSERT INTO `about_gallery` (`id`, `url`, `sorrend`) VALUES
@@ -46,42 +47,45 @@ INSERT INTO `about_gallery` (`id`, `url`, `sorrend`) VALUES
 -- --------------------------------------------------------
 
 --
--- Table structure for table `comment`
+-- Tábla szerkezet ehhez a táblához `comment`
 --
 
+DROP TABLE IF EXISTS `comment`;
 CREATE TABLE `comment` (
   `id` int(10) UNSIGNED NOT NULL,
   `User_Id` int(10) UNSIGNED NOT NULL,
   `Comment_Text` text NOT NULL,
   `Created_At` timestamp NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_hungarian_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_hungarian_ci;
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `game`
+-- Tábla szerkezet ehhez a táblához `game`
 --
 
+DROP TABLE IF EXISTS `game`;
 CREATE TABLE `game` (
   `Game_Id` int(10) UNSIGNED NOT NULL,
   `User_Id` int(10) UNSIGNED NOT NULL,
   `Last_Login` timestamp NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_hungarian_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_hungarian_ci;
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `home_cards`
+-- Tábla szerkezet ehhez a táblához `home_cards`
 --
 
+DROP TABLE IF EXISTS `home_cards`;
 CREATE TABLE `home_cards` (
   `id` int(11) NOT NULL,
   `kulcs` varchar(50) NOT NULL,
   `tartalom` text NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_hungarian_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_hungarian_ci;
 
 --
--- Dumping data for table `home_cards`
+-- A tábla adatainak kiíratása `home_cards`
 --
 
 INSERT INTO `home_cards` (`id`, `kulcs`, `tartalom`) VALUES
@@ -91,18 +95,19 @@ INSERT INTO `home_cards` (`id`, `kulcs`, `tartalom`) VALUES
 -- --------------------------------------------------------
 
 --
--- Table structure for table `news`
+-- Tábla szerkezet ehhez a táblához `news`
 --
 
+DROP TABLE IF EXISTS `news`;
 CREATE TABLE `news` (
   `id` int(11) UNSIGNED NOT NULL,
   `cim` varchar(255) NOT NULL,
   `tartalom` text NOT NULL,
   `datum` date NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_hungarian_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_hungarian_ci;
 
 --
--- Dumping data for table `news`
+-- A tábla adatainak kiíratása `news`
 --
 
 INSERT INTO `news` (`id`, `cim`, `tartalom`, `datum`) VALUES
@@ -112,37 +117,41 @@ INSERT INTO `news` (`id`, `cim`, `tartalom`, `datum`) VALUES
 -- --------------------------------------------------------
 
 --
--- Table structure for table `stats`
+-- Tábla szerkezet ehhez a táblához `stats`
 --
 
+DROP TABLE IF EXISTS `stats`;
 CREATE TABLE `stats` (
   `Stat_Id` int(10) UNSIGNED NOT NULL,
   `User_Id` int(10) UNSIGNED NOT NULL,
   `Score` int(10) UNSIGNED NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_hungarian_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_hungarian_ci;
 
 --
--- Dumping data for table `stats`
+-- A tábla adatainak kiíratása `stats`
 --
 
 INSERT INTO `stats` (`Stat_Id`, `User_Id`, `Score`) VALUES
-(1, 3, 33),
-(2, 1, 31);
+(5, 8, 31),
+(8, 8, 32),
+(11, 8, 32),
+(14, 8, 30);
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `updates`
+-- Tábla szerkezet ehhez a táblához `updates`
 --
 
+DROP TABLE IF EXISTS `updates`;
 CREATE TABLE `updates` (
   `id` int(11) NOT NULL,
   `datum` date NOT NULL,
   `szoveg` text NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_hungarian_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_hungarian_ci;
 
 --
--- Dumping data for table `updates`
+-- A tábla adatainak kiíratása `updates`
 --
 
 INSERT INTO `updates` (`id`, `datum`, `szoveg`) VALUES
@@ -155,9 +164,10 @@ INSERT INTO `updates` (`id`, `datum`, `szoveg`) VALUES
 -- --------------------------------------------------------
 
 --
--- Table structure for table `user`
+-- Tábla szerkezet ehhez a táblához `user`
 --
 
+DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
   `User_Id` int(10) UNSIGNED NOT NULL,
   `User_Name` varchar(255) NOT NULL,
@@ -166,68 +176,67 @@ CREATE TABLE `user` (
   `Email` varchar(255) NOT NULL,
   `Password` varchar(255) NOT NULL,
   `Is_Admin` tinyint(1) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_hungarian_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_hungarian_ci;
 
 --
--- Dumping data for table `user`
+-- A tábla adatainak kiíratása `user`
 --
 
 INSERT INTO `user` (`User_Id`, `User_Name`, `First_Name`, `Last_Name`, `Email`, `Password`, `Is_Admin`) VALUES
-(1, 'asd', 'asd', 'asd', 'asd@gmail.com', '$2b$10$nxnamjuMQU.qOWOH5EdBdOad8kFm/8vIoel/Z6owJnjrbwLZPbztu', 1),
-(2, 'a', 'asd', 'asd', 'a@gmail.com', '$2b$10$LzAJpGM6.j5UGBkFTp21juSj9lvbnuMvg2tNVhJf190Aah83NP0l.', 0),
-(3, 'GAMETEST', 'GAME', 'TEST', 'GAMETEST@gmail.com', '$2b$10$2f1unnW8dz9/5XKUHgZK3OjUdPeh15BGhksro6EXkbhXF2GTn2pzO', 0);
+(8, 'TEST', 'TEST', 'TEST', 'TEST@gmail.com', '$2b$10$.Thlgwwi6hwlBHe16.W2Wu1pwuhJr454Wd8szqgVGTm2zYV6HW73K', 0),
+(29, 'admin', 'John', 'Doe', 'admin@admin.com', '$2b$12$3Gu0npLT/9LM6DVph7jpjuT8DiOF4rtWVFV9OMVMC1ZwsMyQbcmZa', 1);
 
 --
--- Indexes for dumped tables
+-- Indexek a kiírt táblákhoz
 --
 
 --
--- Indexes for table `about_gallery`
+-- A tábla indexei `about_gallery`
 --
 ALTER TABLE `about_gallery`
   ADD PRIMARY KEY (`id`);
 
 --
--- Indexes for table `comment`
+-- A tábla indexei `comment`
 --
 ALTER TABLE `comment`
   ADD PRIMARY KEY (`id`),
   ADD KEY `comment_user_id_foreign` (`User_Id`);
 
 --
--- Indexes for table `game`
+-- A tábla indexei `game`
 --
 ALTER TABLE `game`
   ADD PRIMARY KEY (`Game_Id`),
   ADD KEY `game_user_id_foreign` (`User_Id`);
 
 --
--- Indexes for table `home_cards`
+-- A tábla indexei `home_cards`
 --
 ALTER TABLE `home_cards`
   ADD PRIMARY KEY (`id`);
 
 --
--- Indexes for table `news`
+-- A tábla indexei `news`
 --
 ALTER TABLE `news`
   ADD PRIMARY KEY (`id`);
 
 --
--- Indexes for table `stats`
+-- A tábla indexei `stats`
 --
 ALTER TABLE `stats`
   ADD PRIMARY KEY (`Stat_Id`),
   ADD KEY `stats_user_id_foreign` (`User_Id`);
 
 --
--- Indexes for table `updates`
+-- A tábla indexei `updates`
 --
 ALTER TABLE `updates`
   ADD PRIMARY KEY (`id`);
 
 --
--- Indexes for table `user`
+-- A tábla indexei `user`
 --
 ALTER TABLE `user`
   ADD PRIMARY KEY (`User_Id`),
@@ -235,78 +244,78 @@ ALTER TABLE `user`
   ADD UNIQUE KEY `user_email_unique` (`Email`);
 
 --
--- AUTO_INCREMENT for dumped tables
+-- A kiírt táblák AUTO_INCREMENT értéke
 --
 
 --
--- AUTO_INCREMENT for table `about_gallery`
+-- AUTO_INCREMENT a táblához `about_gallery`
 --
 ALTER TABLE `about_gallery`
   MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
--- AUTO_INCREMENT for table `comment`
+-- AUTO_INCREMENT a táblához `comment`
 --
 ALTER TABLE `comment`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `game`
+-- AUTO_INCREMENT a táblához `game`
 --
 ALTER TABLE `game`
   MODIFY `Game_Id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `home_cards`
+-- AUTO_INCREMENT a táblához `home_cards`
 --
 ALTER TABLE `home_cards`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
--- AUTO_INCREMENT for table `news`
+-- AUTO_INCREMENT a táblához `news`
 --
 ALTER TABLE `news`
-  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
--- AUTO_INCREMENT for table `stats`
+-- AUTO_INCREMENT a táblához `stats`
 --
 ALTER TABLE `stats`
-  MODIFY `Stat_Id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `Stat_Id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
--- AUTO_INCREMENT for table `updates`
+-- AUTO_INCREMENT a táblához `updates`
 --
 ALTER TABLE `updates`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
--- AUTO_INCREMENT for table `user`
+-- AUTO_INCREMENT a táblához `user`
 --
 ALTER TABLE `user`
-  MODIFY `User_Id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `User_Id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
--- Constraints for dumped tables
+-- Megkötések a kiírt táblákhoz
 --
 
 --
--- Constraints for table `comment`
+-- Megkötések a táblához `comment`
 --
 ALTER TABLE `comment`
-  ADD CONSTRAINT `comment_user_id_foreign` FOREIGN KEY (`User_Id`) REFERENCES `user` (`User_Id`);
+  ADD CONSTRAINT `comment_user_id_foreign` FOREIGN KEY (`User_Id`) REFERENCES `user` (`User_Id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `game`
+-- Megkötések a táblához `game`
 --
 ALTER TABLE `game`
-  ADD CONSTRAINT `game_user_id_foreign` FOREIGN KEY (`User_Id`) REFERENCES `user` (`User_Id`);
+  ADD CONSTRAINT `game_user_id_foreign` FOREIGN KEY (`User_Id`) REFERENCES `user` (`User_Id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `stats`
+-- Megkötések a táblához `stats`
 --
 ALTER TABLE `stats`
-  ADD CONSTRAINT `stats_user_id_foreign` FOREIGN KEY (`User_Id`) REFERENCES `user` (`User_Id`);
+  ADD CONSTRAINT `stats_user_id_foreign` FOREIGN KEY (`User_Id`) REFERENCES `user` (`User_Id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
